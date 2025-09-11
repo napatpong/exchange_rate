@@ -328,8 +328,8 @@ async function generatePDF(page, pageInfo) {
       left: '20px'
     },
     displayHeaderFooter: true,
-    headerTemplate: `<div style="font-size: 12px; text-align: center; width: 100%;">UOB - อัตราแลกเปลี่ยน ครั้งที่ ${pageInfo.round} เวลา ${pageInfo.time || 'N/A'}</div>`,
-    footerTemplate: `<div style="font-size: 10px; text-align: center; width: 100%; white-space: nowrap;">อัพเดท ณ วันที่ ${pageInfo.date} เวลา ${pageInfo.time || 'N/A'} - Page <span class="pageNumber"></span></div>`
+    headerTemplate: `<div style="font-size: 12px; text-align: center; width: 100%; font-family: 'Loma', 'Garuda', 'Kinnari', 'Norasi', 'Purisa', 'Sawasdee', 'TlwgMono', 'TlwgTypewriter', 'TlwgTypist', 'TlwgTypo', 'Umpush', 'Waree', 'Noto Sans Thai', Arial, sans-serif;">UOB - อัตราแลกเปลี่ยน ครั้งที่ ${pageInfo.round} เวลา ${pageInfo.time || 'N/A'}</div>`,
+    footerTemplate: `<div style="font-size: 10px; text-align: center; width: 100%; white-space: nowrap; font-family: 'Loma', 'Garuda', 'Kinnari', 'Norasi', 'Purisa', 'Sawasdee', 'TlwgMono', 'TlwgTypewriter', 'TlwgTypist', 'TlwgTypo', 'Umpush', 'Waree', 'Noto Sans Thai', Arial, sans-serif;">อัพเดท ณ วันที่ ${pageInfo.date} เวลา ${pageInfo.time || 'N/A'} - Page <span class="pageNumber"></span></div>`
   });
   
   console.log(`✅ PDF generated: ${filename}`);
