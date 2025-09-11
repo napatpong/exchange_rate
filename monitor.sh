@@ -43,6 +43,12 @@ show_logs() {
     if [ -f "$LOG_FILE" ]; then
         echo "📋 Recent log entries (last 50 lines):"
         echo "===========================================" 
+        # Show log file size info
+        log_size=$(du -h "$LOG_FILE" 2>/dev/null | cut -f1)
+        echo "📁 Current log size: $log_size"
+        echo "🗂️ Available log files:"
+        ls -lh "$PROJECT_DIR/logs/"*.log* 2>/dev/null | head -10
+        echo "==========================================="
         tail -50 "$LOG_FILE"
     else
         echo "📋 No log file found at: $LOG_FILE"

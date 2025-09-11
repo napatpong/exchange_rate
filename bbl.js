@@ -146,9 +146,70 @@ async function exportBBLExchangeRates() {
       console.log(`\n📊 Processing time option ${fileNumber}/${timeOptions.length}: ${option.text}`);
 
       try {
-        // Select the time option
-        await page.select('.select-time-exchange.dynamic-select select', option.value);
-        console.log(`⏰ Selected time: ${option.text}`);
+        // Wait for the selector to be available (especially important for subsequent iterations)
+        try {
+          await page.waitForSelector('.select-time-exchange.dynamic-select select', { timeout: 10000 });
+        } catch (waitError) {
+          console.log('⚠️ Primary selector not found, trying alternative selectors...');
+          
+          // Try alternative selectors
+          const alternatives = [
+            'select[name*="time"]',
+            '.dynamic-select select',
+            'select.form-control',
+            'select'
+          ];
+          
+          let selectorFound = false;
+          for (const altSelector of alternatives) {
+            try {
+              await page.waitForSelector(altSelector, { timeout: 3000 });
+              console.log(`✅ Found alternative selector: ${altSelector}`);
+              selectorFound = true;
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          if (!selectorFound) {
+            throw new Error('No time selector found with any alternative');
+          }
+        }
+        
+        // Select the time option with error handling
+        try {
+          await page.select('.select-time-exchange.dynamic-select select', option.value);
+          console.log(`⏰ Selected time: ${option.text}`);
+        } catch (selectError) {
+          console.log('⚠️ Primary selector failed, trying alternatives...');
+          
+          // Try alternative selection methods
+          const success = await page.evaluate((optionValue) => {
+            const selectors = [
+              '.select-time-exchange.dynamic-select select',
+              'select[name*="time"]',
+              '.dynamic-select select',
+              'select.form-control'
+            ];
+            
+            for (const selector of selectors) {
+              const select = document.querySelector(selector);
+              if (select) {
+                select.value = optionValue;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+              }
+            }
+            return false;
+          }, option.value);
+          
+          if (!success) {
+            throw new Error(`Failed to select time option: ${option.text}`);
+          }
+          
+          console.log(`⏰ Selected time using alternative method: ${option.text}`);
+        }
 
         // Click GO button
         await page.click('#get-fxrates');
@@ -392,6 +453,8 @@ async function exportBBLExchangeRates() {
               table td:nth-child(1), table th:nth-child(1) {
                 width: 15% !important;
                 max-width: 15% !important;
+                text-align: left !important;
+                padding-left: 10px !important;
               }
               table td:nth-child(2), table th:nth-child(2) {
                 width: 25% !important;
@@ -460,7 +523,16 @@ async function exportBBLExchangeRates() {
 
       } catch (error) {
         console.error(`❌ Error processing ${option.text}:`, error.message);
-        continue;
+      }
+      
+      // Refresh page between iterations to ensure clean state (except for the last iteration)
+      if (i < timeOptions.length - 1) {
+        console.log('🔄 Refreshing page for next time option...');
+        await page.goto('https://www.bangkokbank.com/th-TH/Personal/Other-Services/View-Rates/Foreign-Exchange-Rates', {
+          waitUntil: 'networkidle2'
+        });
+        // Small delay to ensure page is fully loaded
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
