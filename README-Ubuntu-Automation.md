@@ -93,7 +93,7 @@ The system runs **every 30 minutes** from **8:30 AM to 4:30 PM**, **Monday to Fr
 ### Cron Job Configuration
 ```bash
 # Every 30 minutes from 8:30 AM to 4:30 PM, Monday to Friday
-30,0 8-16 * * 1-5 cd /path/to/project && /usr/bin/node exchange-export.js >> /path/to/project/logs/exchange-export.log 2>&1
+30,0 8-16 * * 1-5 cd /path/to/project && node exchange-export.js >> /path/to/project/logs/exchange-export.log 2>&1
 ```
 
 ## 🔧 Management Commands
@@ -215,11 +215,20 @@ sudo nano /etc/logrotate.d/exchange-export
 
 5. **Node.js Path Issues**
    ```bash
-   # Find Node.js path
+   # Check which node version is being used
    which node
+   node --version
    
-   # Update cron job with full path
-   crontab -e
+   # Check if /usr/bin/node exists and its version
+   /usr/bin/node --version 2>/dev/null || echo "No /usr/bin/node found"
+   
+   # If you have multiple Node.js versions, use the correct path
+   # Option 1: Use 'node' (recommended - uses PATH)
+   30,0 8-16 * * 1-5 cd /path/to/project && node exchange-export.js >> logs/exchange-export.log 2>&1
+   
+   # Option 2: Use specific path if needed
+   which node  # Find the correct path
+   # Then use that path in crontab -e
    ```
 
 6. **Thai Font Display Issues**

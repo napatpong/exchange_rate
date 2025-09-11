@@ -16,7 +16,7 @@ echo "📋 Log directory created: $LOG_DIR"
 
 # Create the cron job entry
 CRON_JOB="# Exchange Export Automation - Every 30 minutes from 8:30 AM to 4:30 PM
-30,0 8-16 * * 1-5 cd $PROJECT_DIR && /usr/bin/node exchange-export.js >> $LOG_DIR/exchange-export.log 2>&1"
+30,0 8-16 * * 1-5 cd $PROJECT_DIR && node exchange-export.js >> $LOG_DIR/exchange-export.log 2>&1"
 
 # Backup existing crontab
 echo "💾 Backing up existing crontab..."

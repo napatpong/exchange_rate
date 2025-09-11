@@ -14,7 +14,7 @@
 # 2. Add the following line (replace /path/to/project with actual path):
 #
 # Exchange Export Automation - Every 30 minutes from 8:30 AM to 4:30 PM
-30,0 8-16 * * 1-5 cd /path/to/project && /usr/bin/node exchange-export.js >> /path/to/project/logs/exchange-export.log 2>&1
+30,0 8-16 * * 1-5 cd /path/to/project && node exchange-export.js >> /path/to/project/logs/exchange-export.log 2>&1
 #
 # Cron Schedule Explanation:
 # 30,0     = Run at minute 30 and 0 (every 30 minutes)
