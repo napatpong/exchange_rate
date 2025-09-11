@@ -268,7 +268,7 @@ async function generatePDF(page, pageInfo) {
     content: `
       body { 
         background: white !important; 
-        font-family: Arial, sans-serif;
+        font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", Arial, sans-serif;
         margin: 0;
         padding: 20px;
       }

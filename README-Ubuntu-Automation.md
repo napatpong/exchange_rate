@@ -34,6 +34,14 @@ sudo apt-get install -y \
     libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 \
     libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation \
     libappindicator1 libnss3 lsb-release xdg-utils wget
+
+# Install Thai fonts for proper Thai language support
+sudo apt-get install -y \
+    fonts-thai-tlwg fonts-noto-cjk fonts-noto-cjk-extra \
+    fonts-dejavu fonts-dejavu-core fonts-dejavu-extra
+
+# Update font cache
+sudo fc-cache -fv
 ```
 
 ### 2. Network Storage Access
@@ -194,6 +202,19 @@ sudo nano /etc/logrotate.d/exchange-export
    
    # Set environment variable
    export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+   ```
+
+5. **Thai Font Display Issues**
+   ```bash
+   # Check if Thai fonts are installed
+   ./check-thai-fonts.sh
+   
+   # Install missing Thai fonts
+   sudo apt-get install -y fonts-thai-tlwg fonts-noto-cjk fonts-dejavu
+   sudo fc-cache -fv
+   
+   # Verify Thai fonts are available
+   fc-list :lang=th family
    ```
 
 ### Debug Mode

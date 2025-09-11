@@ -282,7 +282,7 @@ async function exportBBLExchangeRates() {
                 margin: 0 !important; 
                 padding: 2px 5px !important; 
                 background: white !important; 
-                font-family: "Sarabun", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
                 font-size: 14px !important;
                 line-height: 1.2 !important;
                 color: #333 !important;
@@ -308,7 +308,7 @@ async function exportBBLExchangeRates() {
                 font-size: 18px !important;
                 color: #333 !important;
                 font-weight: bold !important;
-                font-family: "Sarabun", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
               }
               
               /* Unit and note styling */
@@ -318,7 +318,7 @@ async function exportBBLExchangeRates() {
                 font-size: 15px !important;
                 color: #666 !important;
                 font-weight: normal !important;
-                font-family: "Muli-Regular", Tahoma, Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
                 letter-spacing: -0.1px !important;
               }
               
@@ -328,7 +328,7 @@ async function exportBBLExchangeRates() {
                 color: #555 !important;
                 line-height: 1.4 !important;
                 text-align: left !important;
-                font-family: "Muli-Regular", Tahoma, Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
               }
               
               .note-title {
@@ -336,14 +336,14 @@ async function exportBBLExchangeRates() {
                 margin-bottom: 8px !important;
                 text-align: left !important;
                 font-size: 15px !important;
-                font-family: "Muli-Regular", Tahoma, Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
               }
               
               .note-content {
                 margin-bottom: 12px !important;
                 text-align: left !important;
                 font-size: 13px !important;
-                font-family: "Muli-Regular", Tahoma, Helvetica, Arial, sans-serif !important;
+                font-family: "Loma", "Garuda", "Kinnari", "Norasi", "Purisa", "Sawasdee", "TlwgMono", "TlwgTypewriter", "TlwgTypist", "TlwgTypo", "Umpush", "Waree", "Noto Sans Thai", sans-serif !important;
                 line-height: 1.3 !important;
                 display: -webkit-box !important;
                 -webkit-line-clamp: 2 !important;
