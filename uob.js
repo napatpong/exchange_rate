@@ -269,13 +269,64 @@ function isBusinessHours(timeString) {
 }
 
 async function generatePDF(page, pageInfo) {
+  // รอให้หน้าเว็บโหลดเสร็จสมบูรณ์ (Puppeteer)
+  await page.waitForSelector('body', { timeout: 10000 });
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // ตรวจสอบและรอให้ตารางโหลดเสร็จ
+  const tableExists = await page.evaluate(() => {
+    const tables = document.querySelectorAll('table');
+    console.log(`🔍 Found ${tables.length} tables before processing`);
+    
+    for (let i = 0; i < tables.length; i++) {
+      const table = tables[i];
+      const tableText = table.textContent.toLowerCase();
+      const hasExchangeData = tableText.includes('usd') || tableText.includes('eur') || 
+                             tableText.includes('gbp') || tableText.includes('jpy') ||
+                             tableText.includes('buying') || tableText.includes('selling') ||
+                             tableText.includes('ซื้อ') || tableText.includes('ขาย');
+      
+      if (hasExchangeData) {
+        console.log(`✅ Exchange rate table found (Table ${i + 1})`);
+        console.log(`📊 Table content preview: ${tableText.substring(0, 150)}...`);
+        return true;
+      }
+    }
+    
+    console.log('⚠️ No exchange rate table found');
+    return false;
+  });
+
+  if (!tableExists) {
+    console.log('❌ No exchange rate table detected, skipping PDF generation');
+    return false;
+  }
+
   // จัดแต่งหน้าเว็บ
   await page.evaluate(() => {
-    // ซ่อนส่วนที่ไม่ต้องการ
+    // ลบ td ที่มี width="25%" และ align="center" ที่มีเนื้อหาโฆษณา/ลิงก์
+    const adTds = document.querySelectorAll('td[width="25%"][align="center"]');
+    adTds.forEach(td => {
+      const tdContent = td.innerHTML.toLowerCase();
+      // ตรวจสอบว่ามีเนื้อหาโฆษณาหรือไม่
+      if (tdContent.includes('tab-loan') || 
+          tdContent.includes('tab-dep') || 
+          tdContent.includes('tab-fw-point') ||
+          tdContent.includes('announcement') ||
+          tdContent.includes('รายละเอียด') ||
+          tdContent.includes('style type="text/css"') ||
+          tdContent.includes('InterestFont')) {
+        console.log('🗑️ Removing advertisement td element');
+        td.remove();
+      }
+    });
+
+    // ซ่อนส่วนที่ไม่ต้องการ แต่ไม่ซ่อนตาราง
     const elementsToHide = [
       'header', 'nav', 'footer',
-      '.header', '.navigation', '.footer',
-      '#header', '#nav', '#footer'
+      '.header', '.navigation', '.footer', 
+      '#header', '#nav', '#footer',
+      '.advertisement', '.ads', '.banner'
     ];
     
     elementsToHide.forEach(selector => {
@@ -285,35 +336,109 @@ async function generatePDF(page, pageInfo) {
       });
     });
 
-    // ซ่อน td ที่มี width="25%" และ align="center"
-    const tdElements = document.querySelectorAll('td[width="25%"][align="center"]');
-    tdElements.forEach(td => {
-      td.style.display = 'none';
-    });
-
-    // จัดแต่งตาราง
+    // แทนที่จะซ่อน td ให้ตรวจสอบว่าเป็นส่วนของตารางอัตราแลกเปลี่ยนหรือไม่
     const tables = document.querySelectorAll('table');
-    tables.forEach(table => {
-      table.style.borderCollapse = 'collapse';
-      table.style.width = '100%';
-      table.style.margin = '10px 0';
+    const exchangeTables = [];
+    
+    tables.forEach((table, index) => {
+      const tableText = table.textContent.toLowerCase();
+      const hasExchangeData = tableText.includes('usd') || tableText.includes('eur') || 
+                             tableText.includes('gbp') || tableText.includes('jpy') ||
+                             tableText.includes('buying') || tableText.includes('selling') ||
+                             tableText.includes('ซื้อ') || tableText.includes('ขาย');
+      
+      if (hasExchangeData) {
+        exchangeTables.push(table);
+        console.log(`📋 Keeping exchange table ${index + 1}`);
+        
+        // จัดแต่งตารางอัตราแลกเปลี่ยน
+        table.style.cssText = `
+          background: white !important;
+          border-collapse: collapse !important;
+          width: 100% !important;
+          margin: 10px 0 !important;
+          display: table !important;
+        `;
+      } else {
+        // ซ่อนตารางที่ไม่เกี่ยวข้อง
+        table.style.display = 'none';
+      }
     });
 
-    // จัดแต่งเซลล์
-    const cells = document.querySelectorAll('td, th');
-    cells.forEach(cell => {
-      cell.style.border = '1px solid #ddd';
-      cell.style.padding = '8px';
-      cell.style.textAlign = 'center';
-      cell.style.fontSize = '14px';
+    // จัดแต่งเซลล์ในตารางที่เกี่ยวข้องเท่านั้น
+    exchangeTables.forEach(table => {
+      // ลบ column ที่ว่างออก
+      const rows = table.querySelectorAll('tr');
+      if (rows.length > 0) {
+        const firstRow = rows[0];
+        const totalColumns = firstRow.querySelectorAll('td, th').length;
+        
+        // ตรวจสอบแต่ละ column ว่าว่างหรือไม่
+        const emptyColumns = [];
+        for (let colIndex = 0; colIndex < totalColumns; colIndex++) {
+          let isEmpty = true;
+          
+          // ตรวจสอบทุก row ใน column นี้
+          for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+            const cells = rows[rowIndex].querySelectorAll('td, th');
+            if (cells[colIndex]) {
+              const cellText = cells[colIndex].textContent.trim();
+              // ถือว่าว่างถ้าไม่มีข้อความ หรือมีแต่ whitespace หรือ &nbsp;
+              if (cellText && cellText !== '' && cellText !== '\u00A0' && cellText !== '-') {
+                isEmpty = false;
+                break;
+              }
+            }
+          }
+          
+          if (isEmpty) {
+            emptyColumns.push(colIndex);
+          }
+        }
+        
+        // ลบ column ที่ว่างออก (ลบจากหลังไปหน้าเพื่อไม่ให้ index เปลี่ยน)
+        emptyColumns.reverse().forEach(colIndex => {
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('td, th');
+            if (cells[colIndex]) {
+              cells[colIndex].remove();
+            }
+          });
+        });
+        
+        if (emptyColumns.length > 0) {
+          console.log(`🗑️ Removed ${emptyColumns.length} empty columns from table`);
+        }
+      }
+      
+      const cells = table.querySelectorAll('td, th');
+      cells.forEach(cell => {
+        cell.style.cssText = `
+          border: 1px solid #ddd !important;
+          padding: 8px !important;
+          text-align: center !important;
+          font-size: 14px !important;
+          background: white !important;
+          display: table-cell !important;
+        `;
+      });
+
+      const headers = table.querySelectorAll('th');
+      headers.forEach(header => {
+        header.style.cssText = `
+          background: #f5f5f5 !important;
+          font-weight: bold !important;
+          font-size: 15px !important;
+          border: 1px solid #ddd !important;
+          padding: 8px !important;
+          text-align: center !important;
+          display: table-cell !important;
+        `;
+      });
     });
 
-    // จัดแต่งหัวตาราง
-    const headers = document.querySelectorAll('th');
-    headers.forEach(header => {
-      header.style.backgroundColor = '#f5f5f5';
-      header.style.fontWeight = 'bold';
-    });
+    console.log(`✅ Processed ${exchangeTables.length} exchange rate tables`);
+    return exchangeTables.length;
   });
 
   // เพิ่ม CSS
