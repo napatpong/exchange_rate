@@ -74,6 +74,59 @@ async function exportUOBRatesToPDF() {
       console.log('⏳ Loading data for 10 seconds...');
       await new Promise(resolve => setTimeout(resolve, 10000));
 
+      // ตรวจสอบข้อมูลในตารางและ refresh หากจำเป็น
+      let dataCheckAttempts = 0;
+      const maxDataCheckAttempts = 3;
+      let hasTableData = false;
+
+      while (!hasTableData && dataCheckAttempts < maxDataCheckAttempts) {
+        dataCheckAttempts++;
+        console.log(`🔍 Checking table data (attempt ${dataCheckAttempts}/${maxDataCheckAttempts})...`);
+
+        hasTableData = await page.evaluate(() => {
+          const tables = document.querySelectorAll('table');
+          for (let table of tables) {
+            const rows = table.querySelectorAll('tr');
+            // ตรวจสอบว่ามีแถวข้อมูล (มากกว่า header row)
+            if (rows.length > 1) {
+              // ตรวจสอบว่ามีข้อมูลในเซลล์จริงๆ
+              for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].querySelectorAll('td');
+                for (let cell of cells) {
+                  const text = cell.textContent.trim();
+                  // ตรวจสอบข้อมูลที่มีค่า (ไม่ใช่ empty หรือ placeholder)
+                  if (text && text !== '-' && text !== '' && text !== 'N/A' && text.match(/\d/)) {
+                    return true; // พบข้อมูลจริง
+                  }
+                }
+              }
+            }
+          }
+          return false; // ไม่พบข้อมูล
+        });
+
+        if (!hasTableData && dataCheckAttempts < maxDataCheckAttempts) {
+          console.log(`⚠️ No table data found, refreshing page...`);
+          await page.reload({ waitUntil: 'networkidle2' });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // เลือกรอบใหม่หลัง refresh
+          const reselected = await selectRound(page, round);
+          if (!reselected) {
+            console.log(`❌ Failed to reselect round ${round} after refresh`);
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 8000));
+        }
+      }
+
+      if (!hasTableData) {
+        console.log(`⚠️ Round ${round} has no table data after ${maxDataCheckAttempts} attempts - Skipped`);
+        continue;
+      }
+
+      console.log(`✅ Table data confirmed for round ${round}`);
+
       // อ่านข้อมูลจากเว็บ
       const pageInfo = await getPageInfo(page, round);
 
