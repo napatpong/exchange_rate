@@ -1,0 +1,16 @@
+{
+  "name": "exchange-rate-export",
+  "version": "1.0.0",
+  "description": "Export EXIM exchange rate table as PDF, organized by folder and filename format.",
+  "main": "exchange-export.js",
+  "scripts": {
+    "start": "node exchange-export.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dayjs": "^1.11.18",
+    "fs-extra": "^11.3.1",
+    "puppeteer": "^24.19.0"
+  }
+}

@@ -1,0 +1,61 @@
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# dotenv environment variables file
+.env
+.env.test
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local PDF output directories (since files are saved to network storage)
+output/
+BBL/
+UOB/
+EXIM/
+BOT/
+K-BANK/
+Exim/
+
+# Backup files
+*.backup
+*_backup.js
+crontab_backup_*
+
+# Test files
+test.pdf
+test_*

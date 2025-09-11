@@ -1,0 +1,36 @@
+# Exchange Export Automation - Cron Configuration
+# 
+# This file contains the cron job configuration for automated exchange rate exports
+# Schedule: Every 30 minutes from 8:30 AM to 4:30 PM, Monday to Friday
+#
+# Installation Instructions:
+# 1. Copy this project to your Ubuntu server
+# 2. Install Node.js and npm dependencies: npm install
+# 3. Make sure the network path /mnt/synonas/exchange/ is accessible
+# 4. Run: chmod +x setup-cron.sh && ./setup-cron.sh
+#
+# Manual Cron Installation:
+# 1. Edit crontab: crontab -e
+# 2. Add the following line (replace /path/to/project with actual path):
+#
+# Exchange Export Automation - Every 30 minutes from 8:30 AM to 4:30 PM
+30,0 8-16 * * 1-5 cd /path/to/project && /usr/bin/node exchange-export.js >> /path/to/project/logs/exchange-export.log 2>&1
+#
+# Cron Schedule Explanation:
+# 30,0     = Run at minute 30 and 0 (every 30 minutes)
+# 8-16     = Run between hours 8 AM and 4 PM (16:00)
+# * * 1-5  = Every day of month, every month, Monday to Friday only
+#
+# Execution Times:
+# 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30,
+# 12:00, 12:30, 13:00, 13:30, 14:00, 14:30, 15:00,
+# 15:30, 16:00, 16:30
+#
+# Total: 17 executions per day
+#
+# Useful Commands:
+# - View current cron jobs: crontab -l
+# - Edit cron jobs: crontab -e
+# - View logs: tail -f /path/to/project/logs/exchange-export.log
+# - Check cron service: sudo systemctl status cron
+# - Restart cron service: sudo systemctl restart cron
