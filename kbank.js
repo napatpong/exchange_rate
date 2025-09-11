@@ -101,7 +101,7 @@ async function exportKbankRatesToPDF() {
       }
       const acceptButtons = await page.$$('button');
       for (const button of acceptButtons) {
-        const text = await button.evaluate(el => el.textContent?.toLowerCase() || '');
+        const text = await button.evaluate(el => el.textContent ? el.textContent.toLowerCase() : '');
         if (text.includes('ยอมรับ') || text.includes('accept') || text.includes('อนุญาต')) {
           await button.click();
           break;

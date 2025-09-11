@@ -57,7 +57,7 @@ async function exportBOTRatesToPDF() {
     try {
       const goButtons = await page.$$('button');
       for (const btn of goButtons) {
-        const text = await btn.evaluate(el => el.textContent?.trim() || '');
+        const text = await btn.evaluate(el => el.textContent ? el.textContent.trim() : '');
         if (text === 'GO' || text.includes('GO')) {
           await btn.click();
           await new Promise(resolve => setTimeout(resolve, 10000));

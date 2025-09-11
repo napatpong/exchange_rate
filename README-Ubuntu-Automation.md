@@ -20,9 +20,13 @@ All PDF files are saved to: `/mnt/synonas/exchange/[BANK]/[YEAR]/[MONTH]/`
 # Update system
 sudo apt update && sudo apt upgrade -y
 
-# Install Node.js (version 18 or higher)
+# Install Node.js (version 18 or higher - REQUIRED for compatibility)
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
+
+# Verify Node.js version (must be 14+ for optimal compatibility)
+node --version
+npm --version
 
 # Install additional dependencies for Puppeteer
 sudo apt-get install -y \
@@ -186,13 +190,18 @@ sudo nano /etc/logrotate.d/exchange-export
    touch /mnt/synonas/exchange/test.txt
    ```
 
-3. **Node.js Not Found**
+3. **Node.js Version Compatibility Issues**
    ```bash
-   # Find Node.js path
-   which node
+   # Check Node.js version (must be 14+ for modern JavaScript features)
+   node --version
    
-   # Update cron job with full path
-   crontab -e
+   # If version is below 14, update Node.js
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   
+   # Verify installation
+   node --version
+   npm --version
    ```
 
 4. **Puppeteer Issues**
@@ -204,7 +213,16 @@ sudo nano /etc/logrotate.d/exchange-export
    export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
    ```
 
-5. **Thai Font Display Issues**
+5. **Node.js Path Issues**
+   ```bash
+   # Find Node.js path
+   which node
+   
+   # Update cron job with full path
+   crontab -e
+   ```
+
+6. **Thai Font Display Issues**
    ```bash
    # Check if Thai fonts are installed
    ./check-thai-fonts.sh

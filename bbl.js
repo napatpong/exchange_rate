@@ -164,8 +164,8 @@ async function exportBBLExchangeRates() {
         // Check if table has data
         const hasTableData = await page.evaluate(() => {
           const section1 = document.querySelector('#section-1');
-          const table = section1?.querySelector('table');
-          const rows = table?.querySelectorAll('tr') || [];
+          const table = section1 ? section1.querySelector('table') : null;
+          const rows = table ? table.querySelectorAll('tr') : [];
           return rows.length > 1; // At least header + 1 data row
         });
 
