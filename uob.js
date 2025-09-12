@@ -59,25 +59,38 @@ async function exportUOBRatesToPDF() {
       return;
     }
 
-    // วนลูปตามรอบที่มีจริงบนเว็บ
+    // วนลูปตามรอบที่มีจริงบนเว็บ พร้อม retry logic
     for (const round of availableRounds) {
-      console.log(`\n📄 ========== Round ${round} ==========`);
-      
-      // เลือกรอบจาก dropdown
-      const roundSelected = await selectRound(page, round);
-      if (!roundSelected) {
-        console.log(`⚠️ Cannot select round ${round}`);
-        continue;
-      }
+      let roundSuccess = false;
+      let roundAttempt = 0;
+      const maxRoundAttempts = 5;
 
-      // รอโหลด 10 วินาที
-      console.log('⏳ Loading data for 10 seconds...');
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      // Retry loop for each round
+      while (!roundSuccess && roundAttempt < maxRoundAttempts) {
+        roundAttempt++;
+        console.log(`\n📄 ========== Round ${round} ${roundAttempt > 1 ? `(Attempt ${roundAttempt}/${maxRoundAttempts})` : ''} ==========`);
+        
+        try {
+          // เลือกรอบจาก dropdown
+          const roundSelected = await selectRound(page, round);
+          if (!roundSelected) {
+            console.log(`⚠️ Cannot select round ${round}`);
+            if (roundAttempt < maxRoundAttempts) {
+              console.log(`🔄 Retrying round ${round} in 5 seconds...`);
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              continue;
+            }
+            break;
+          }
 
-      // ตรวจสอบข้อมูลในตารางและ refresh หากจำเป็น
-      let dataCheckAttempts = 0;
-      const maxDataCheckAttempts = 3;
-      let hasTableData = false;
+          // รอโหลด 10 วินาที
+          console.log('⏳ Loading data for 10 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 10000));
+
+          // ตรวจสอบข้อมูลในตารางและ refresh หากจำเป็น
+          let dataCheckAttempts = 0;
+          const maxDataCheckAttempts = 3;
+          let hasTableData = false;
 
       while (!hasTableData && dataCheckAttempts < maxDataCheckAttempts) {
         dataCheckAttempts++;
@@ -120,32 +133,59 @@ async function exportUOBRatesToPDF() {
         }
       }
 
-      if (!hasTableData) {
-        console.log(`⚠️ Round ${round} has no table data after ${maxDataCheckAttempts} attempts - Skipped`);
-        continue;
-      }
+          if (!hasTableData) {
+            console.log(`⚠️ Round ${round} has no table data after ${maxDataCheckAttempts} attempts`);
+            if (roundAttempt < maxRoundAttempts) {
+              console.log(`🔄 Retrying round ${round} in 5 seconds...`);
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              continue; // Continue to next attempt
+            }
+            break; // Exit retry loop if max attempts reached
+          }
 
-      console.log(`✅ Table data confirmed for round ${round}`);
+          console.log(`✅ Table data confirmed for round ${round}`);
 
-      // อ่านข้อมูลจากเว็บ
-      const pageInfo = await getPageInfo(page, round);
+          // อ่านข้อมูลจากเว็บ
+          const pageInfo = await getPageInfo(page, round);
 
-      // ตรวจสอบเวลา
-      if (!isBusinessHours(pageInfo.time)) {
-        console.log(`⚠️ Round ${round} is outside business hours (8:00-16:00) - Skipped`);
-        continue;
-      }
+          // ตรวจสอบเวลา
+          if (!isBusinessHours(pageInfo.time)) {
+            console.log(`⚠️ Round ${round} is outside business hours (8:00-16:00) - Skipped`);
+            roundSuccess = true; // Mark as success to avoid retry
+            break;
+          }
 
-      // สร้าง PDF
-      try {
-        const wasGenerated = await generatePDF(page, pageInfo);
-        if (wasGenerated) {
-          console.log(`✅ PDF created successfully for round ${round}: ${pageInfo.date ? `uob ${pageInfo.date} #${pageInfo.round}.pdf` : 'uob-' + round + '.pdf'}`);
-        } else {
-          console.log(`⚠️ File already exists for round ${round}: ${pageInfo.date ? `uob ${pageInfo.date} #${pageInfo.round}.pdf` : 'uob-' + round + '.pdf'}`);
+          // สร้าง PDF
+          try {
+            const wasGenerated = await generatePDF(page, pageInfo);
+            if (wasGenerated) {
+              console.log(`✅ PDF created successfully for round ${round}: ${pageInfo.date ? `uob ${pageInfo.date} #${pageInfo.round}.pdf` : 'uob-' + round + '.pdf'}`);
+              roundSuccess = true; // Mark as success
+            } else {
+              console.log(`⚠️ File already exists for round ${round}: ${pageInfo.date ? `uob ${pageInfo.date} #${pageInfo.round}.pdf` : 'uob-' + round + '.pdf'}`);
+              roundSuccess = true; // File exists is also considered success
+            }
+          } catch (error) {
+            console.error(`❌ Error creating PDF for round ${round}:`, error.message);
+            if (roundAttempt < maxRoundAttempts) {
+              console.log(`🔄 Retrying round ${round} in 5 seconds...`);
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              continue; // Continue to next attempt
+            }
+          }
+
+        } catch (error) {
+          console.error(`❌ Error in round ${round} attempt ${roundAttempt}:`, error.message);
+          if (roundAttempt < maxRoundAttempts) {
+            console.log(`🔄 Retrying round ${round} in 5 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            continue; // Continue to next attempt
+          }
         }
-      } catch (error) {
-        console.error(`❌ Error creating PDF for round ${round}:`, error.message);
+      }
+
+      if (!roundSuccess) {
+        console.log(`❌ Round ${round} failed after ${maxRoundAttempts} attempts - Skipping`);
       }
 
       // รอระหว่างรอบ
