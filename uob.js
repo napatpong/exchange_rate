@@ -76,8 +76,12 @@ async function exportUOBRatesToPDF() {
           if (!roundSelected) {
             console.log(`⚠️ Cannot select round ${round}`);
             if (roundAttempt < maxRoundAttempts) {
-              console.log(`🔄 Retrying round ${round} in 5 seconds...`);
+              console.log(`🔄 Refreshing entire page and retrying round ${round} in 5 seconds...`);
               await new Promise(resolve => setTimeout(resolve, 5000));
+              
+              // Refresh หน้าใหม่ทั้งหมด
+              await page.reload({ waitUntil: 'networkidle2' });
+              await new Promise(resolve => setTimeout(resolve, 10000));
               continue;
             }
             break;
@@ -98,24 +102,40 @@ async function exportUOBRatesToPDF() {
 
         hasTableData = await page.evaluate(() => {
           const tables = document.querySelectorAll('table');
+          let hasRealData = false;
+          
           for (let table of tables) {
-            const rows = table.querySelectorAll('tr');
-            // ตรวจสอบว่ามีแถวข้อมูล (มากกว่า header row)
-            if (rows.length > 1) {
-              // ตรวจสอบว่ามีข้อมูลในเซลล์จริงๆ
-              for (let i = 1; i < rows.length; i++) {
-                const cells = rows[i].querySelectorAll('td');
-                for (let cell of cells) {
-                  const text = cell.textContent.trim();
-                  // ตรวจสอบข้อมูลที่มีค่า (ไม่ใช่ empty หรือ placeholder)
-                  if (text && text !== '-' && text !== '' && text !== 'N/A' && text.match(/\d/)) {
-                    return true; // พบข้อมูลจริง
+            const tableText = table.textContent.toLowerCase();
+            const hasExchangeKeywords = tableText.includes('usd') || tableText.includes('eur') || 
+                                       tableText.includes('gbp') || tableText.includes('jpy') ||
+                                       tableText.includes('buying') || tableText.includes('selling') ||
+                                       tableText.includes('ซื้อ') || tableText.includes('ขาย');
+            
+            if (hasExchangeKeywords) {
+              const rows = table.querySelectorAll('tr');
+              // ตรวจสอบว่ามีแถวข้อมูล (มากกว่า header row)
+              if (rows.length > 1) {
+                // ตรวจสอบว่ามีข้อมูลที่มีตัวเลข (ผ่อนเกณฑ์)
+                for (let i = 1; i < rows.length; i++) {
+                  const cells = rows[i].querySelectorAll('td');
+                  for (let cell of cells) {
+                    const text = cell.textContent.trim();
+                    // ตรวจหาตัวเลขใดๆ หรือข้อความที่มีความหมาย
+                    if (text && text !== '-' && text !== '' && text !== 'N/A' && 
+                        (text.match(/\d/) || text.length > 1)) {
+                      hasRealData = true;
+                      break;
+                    }
                   }
+                  if (hasRealData) break;
                 }
               }
             }
+            
+            if (hasRealData) break;
           }
-          return false; // ไม่พบข้อมูล
+          
+          return hasRealData;
         });
 
         if (!hasTableData && dataCheckAttempts < maxDataCheckAttempts) {
@@ -150,7 +170,7 @@ async function exportUOBRatesToPDF() {
 
           // ตรวจสอบเวลา
           if (!isBusinessHours(pageInfo.time)) {
-            console.log(`⚠️ Round ${round} is outside business hours (8:00-16:00) - Skipped`);
+            console.log(`⚠️ Round ${round} time: ${pageInfo.time} is outside business hours (8:00-15:59) - Skipped`);
             roundSuccess = true; // Mark as success to avoid retry
             break;
           }
@@ -202,9 +222,18 @@ async function exportUOBRatesToPDF() {
 }
 
 async function selectRound(page, targetRound) {
+  // รอให้ dropdown โหลดก่อน
+  try {
+    await page.waitForSelector('select[name="count_form"]', { timeout: 10000 });
+  } catch (error) {
+    console.log(`⚠️ Dropdown not found for round ${targetRound}`);
+    return false;
+  }
+
   const roundSelected = await page.evaluate((round) => {
     const countSelect = document.querySelector('select[name="count_form"]');
     if (countSelect) {
+      console.log(`Available options: ${Array.from(countSelect.options).map(opt => opt.value).join(', ')}`);
       const targetOption = Array.from(countSelect.options).find(opt => opt.value === round.toString());
       if (targetOption) {
         countSelect.value = round.toString();
@@ -215,9 +244,14 @@ async function selectRound(page, targetRound) {
         }
         
         return true;
+      } else {
+        console.log(`Option with value ${round} not found in dropdown`);
+        return false;
       }
+    } else {
+      console.log('Dropdown select[name="count_form"] not found');
+      return false;
     }
-    return false;
   }, targetRound);
 
   if (roundSelected) {
@@ -303,7 +337,7 @@ function isBusinessHours(timeString) {
   }
 
   const [hour] = timeString.split(':').map(Number);
-  const isInRange = hour >= 8 && hour <= 16;
+  const isInRange = hour >= 8 && hour < 16; // เปลี่ยนจาก <= 16 เป็น < 16
   
   return isInRange;
 }
@@ -313,10 +347,11 @@ async function generatePDF(page, pageInfo) {
   await page.waitForSelector('body', { timeout: 10000 });
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // ตรวจสอบและรอให้ตารางโหลดเสร็จ
-  const tableExists = await page.evaluate(() => {
+  // ตรวจสอบและรอให้ตารางโหลดเสร็จ + Enhanced validation
+  const tableValidation = await page.evaluate(() => {
     const tables = document.querySelectorAll('table');
-    console.log(`🔍 Found ${tables.length} tables before processing`);
+    let exchangeTables = 0;
+    let hasRealData = false;
     
     for (let i = 0; i < tables.length; i++) {
       const table = tables[i];
@@ -327,18 +362,37 @@ async function generatePDF(page, pageInfo) {
                              tableText.includes('ซื้อ') || tableText.includes('ขาย');
       
       if (hasExchangeData) {
-        console.log(`✅ Exchange rate table found (Table ${i + 1})`);
-        console.log(`📊 Table content preview: ${tableText.substring(0, 150)}...`);
-        return true;
+        exchangeTables++;
+        
+        // Check for actual numeric data (exchange rates)
+        const rows = table.querySelectorAll('tr');
+        for (let row of rows) {
+          const cells = row.querySelectorAll('td');
+          for (let cell of cells) {
+            const cellText = cell.textContent.trim();
+            // Look for any meaningful data (numbers or content)
+            if (cellText && cellText !== '-' && cellText !== '' && cellText !== 'N/A' && 
+                (cellText.match(/\d/) || cellText.length > 1)) {
+              hasRealData = true;
+              break;
+            }
+          }
+          if (hasRealData) break;
+        }
       }
     }
     
-    console.log('⚠️ No exchange rate table found');
-    return false;
+    return {
+      totalTables: tables.length,
+      exchangeTables: exchangeTables,
+      hasRealData: hasRealData
+    };
   });
 
-  if (!tableExists) {
-    console.log('❌ No exchange rate table detected, skipping PDF generation');
+  console.log(`🔍 Table validation: ${tableValidation.totalTables} total, ${tableValidation.exchangeTables} exchange, hasData: ${tableValidation.hasRealData}`);
+
+  if (!tableValidation.hasRealData || tableValidation.exchangeTables === 0) {
+    console.log('❌ No valid exchange rate table with numeric data detected, skipping PDF generation');
     return false;
   }
 
