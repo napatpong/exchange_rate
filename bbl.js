@@ -121,21 +121,21 @@ async function exportBBLExchangeRates() {
       waitUntil: 'networkidle2'
     });
 
-    // Create output directory
-    const now = dayjs();
-    const year = now.format('YYYY');
-    const month = now.format('MMMM'); // Full month name in English (January, February, etc.)
-    const dateStr = now.format('YYYY-MM-DD');
+    // Create output directory - will be updated with website date if found
+    let currentDate = dayjs();
+    let year = currentDate.format('YYYY');
+    let month = currentDate.format('MMMM');
+    let dateStr = currentDate.format('YYYY-MM-DD');
     
-    const dirPath = path.join('/mnt/synonas/exchange', 'BBL', year, month);
+    let dirPath = path.join('/mnt/synonas/exchange', 'BBL', year, month);
     await fs.ensureDir(dirPath);
 
     // Process each time option
     for (let i = 0; i < timeOptions.length; i++) {
       const option = timeOptions[i];
       const fileNumber = i + 1;
-      const filename = `BBL ${dateStr} #${fileNumber}.pdf`;
-      const filePath = path.join(dirPath, filename);
+      let filename = `BBL ${dateStr} #${fileNumber}.pdf`;
+      let filePath = path.join(dirPath, filename);
 
       // Check if file already exists
       if (await fs.pathExists(filePath)) {
@@ -221,6 +221,47 @@ async function exportBBLExchangeRates() {
 
         // Wait for section-1 to be available
         await page.waitForSelector('#section-1', { timeout: 5000 });
+
+        // Read date from website on first iteration
+        if (i === 0) {
+          const websiteDate = await page.evaluate(() => {
+            const dateElement = document.querySelector('span.custom-date-label');
+            if (dateElement) {
+              const dateText = dateElement.textContent.trim();
+              
+              // Thai months mapping
+              const thaiMonths = {
+                'ม.ค.': '01', 'ก.พ.': '02', 'มี.ค.': '03', 'เม.ย.': '04',
+                'พ.ค.': '05', 'มิ.ย.': '06', 'ก.ค.': '07', 'ส.ค.': '08', 
+                'ก.ย.': '09', 'ต.ค.': '10', 'พ.ย.': '11', 'ธ.ค.': '12'
+              };
+              
+              // Parse Thai format "12 ก.ย. 2568"
+              const thaiMatch = dateText.match(/(\d{1,2})\s+(\S+\.)\s+(\d{4})/);
+              if (thaiMatch) {
+                const [, day, thaiMonth, buddhistYear] = thaiMatch;
+                const month = thaiMonths[thaiMonth];
+                if (month) {
+                  const adYear = parseInt(buddhistYear) - 543;
+                  return `${adYear}-${month}-${day.padStart(2, '0')}`;
+                }
+              }
+            }
+            return null;
+          });
+
+          if (websiteDate && websiteDate !== dateStr) {
+            console.log(`📅 Using date from website: ${websiteDate}`);
+            dateStr = websiteDate;
+            const newDateObj = dayjs(websiteDate);
+            year = newDateObj.format('YYYY');
+            month = newDateObj.format('MMMM');
+            dirPath = path.join('/mnt/synonas/exchange', 'BBL', year, month);
+            await fs.ensureDir(dirPath);
+            filename = `BBL ${dateStr} #${fileNumber}.pdf`;
+            filePath = path.join(dirPath, filename);
+          }
+        }
 
         // Check if table has data
         const hasTableData = await page.evaluate(() => {
