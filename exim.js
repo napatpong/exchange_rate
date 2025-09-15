@@ -160,7 +160,13 @@ async function findContentFrame(page, { timeout = 15000 } = {}) {
 	
 	const date = dayjs(englishDateStr, 'D MMMM YYYY', 'th');
 	const year = date.format('YYYY');
-	const monthName = date.format('MMMM');
+	
+	// Use English month names for folder structure
+	const monthNames = [
+		'', 'January', 'February', 'March', 'April', 'May', 'June',
+		'July', 'August', 'September', 'October', 'November', 'December'
+	];
+	const monthName = monthNames[date.month() + 1];
 
 	// Create output directory
 	const outputDir = path.join(OUTPUT_ROOT, year, monthName);

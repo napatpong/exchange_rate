@@ -124,7 +124,13 @@ async function exportBBLExchangeRates() {
     // Create output directory - will be updated with website date if found
     let currentDate = dayjs();
     let year = currentDate.format('YYYY');
-    let month = currentDate.format('MMMM');
+    
+    // Use English month names for folder structure
+    const monthNames = [
+        '', 'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    let month = monthNames[currentDate.month() + 1];
     let dateStr = currentDate.format('YYYY-MM-DD');
     
     let dirPath = path.join('/mnt/synonas/exchange', 'BBL', year, month);
@@ -255,7 +261,7 @@ async function exportBBLExchangeRates() {
             dateStr = websiteDate;
             const newDateObj = dayjs(websiteDate);
             year = newDateObj.format('YYYY');
-            month = newDateObj.format('MMMM');
+            month = monthNames[newDateObj.month() + 1];
             dirPath = path.join('/mnt/synonas/exchange', 'BBL', year, month);
             await fs.ensureDir(dirPath);
             filename = `BBL ${dateStr} #${fileNumber}.pdf`;

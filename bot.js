@@ -29,17 +29,62 @@ async function exportBOTRatesToPDF() {
 
     // Wait for page to load
     await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    // Read date from website
+    console.log('📅 Reading date from website...');
+    const dateText = await page.evaluate(() => {
+      const element = document.querySelector('body');
+      return element ? element.textContent : '';
+    });
+    
+    // Extract date from Thai text "ประจำวันที่ 12 กันยายน 2568"
+    const dateMatch = dateText.match(/ประจำวันที่\s+(\d{1,2})\s+(\S+)\s+(\d{4})/);
+    
+    let day, monthName, year;
+    if (dateMatch) {
+      day = parseInt(dateMatch[1]);
+      monthName = dateMatch[2];
+      year = parseInt(dateMatch[3]) - 543; // Convert Buddhist year to Christian year
+    } else {
+      // Fallback to current date if website date not found
+      const now = dayjs();
+      day = now.date();
+      monthName = 'กันยายน'; // Default month
+      year = now.year();
+    }
+    
+    // Thai to English month mapping
+    const thaiToEnglishMonths = {
+      'มกราคม': 'January',
+      'กุมภาพันธ์': 'February', 
+      'มีนาคม': 'March',
+      'เมษายน': 'April',
+      'พฤษภาคม': 'May',
+      'มิถุนายน': 'June',
+      'กรกฎาคม': 'July',
+      'สิงหาคม': 'August',
+      'กันยายน': 'September',
+      'ตุลาคม': 'October',
+      'พฤศจิกายน': 'November',
+      'ธันวาคม': 'December'
+    };
+    
+    const englishMonth = thaiToEnglishMonths[monthName] || 'September';
+    console.log(`📅 Website date: ${day}/${englishMonth}/${year}`);
 
     // Create output directory
-    const now = dayjs();
-    const outputDir = path.join('/mnt/synonas/exchange', 'BOT', now.format('YYYY'), now.format('MMMM'));
+    const outputDir = path.join('/mnt/synonas/exchange', 'BOT', year.toString(), englishMonth);
+    console.log(`📁 Output directory: ${outputDir}`);
     await fsExtra.ensureDir(outputDir);
 
-    // Setup download behavior
+    // Setup download behavior to current directory first
     const client = await page.target().createCDPSession();
+    const tempDownloadDir = path.join(__dirname, 'temp_downloads');
+    await fsExtra.ensureDir(tempDownloadDir);
+    
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
-      downloadPath: outputDir
+      downloadPath: tempDownloadDir
     });
     
     // Wait for page to fully load and JavaScript to execute
@@ -53,20 +98,20 @@ async function exportBOTRatesToPDF() {
     
     await new Promise(resolve => setTimeout(resolve, 10000));
     
-    // Try to click GO button first to load data
-    try {
-      const goButtons = await page.$$('button');
-      for (const btn of goButtons) {
-        const text = await btn.evaluate(el => el.textContent ? el.textContent.trim() : '');
-        if (text === 'GO' || text.includes('GO')) {
-          await btn.click();
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          break;
-        }
-      }
-    } catch (error) {
-      // GO button not found
-    }
+    // // Try to click GO button first to load data
+    // try {
+    //   const goButtons = await page.$$('button');
+    //   for (const btn of goButtons) {
+    //     const text = await btn.evaluate(el => el.textContent ? el.textContent.trim() : '');
+    //     if (text === 'GO' || text.includes('GO')) {
+    //       await btn.click();
+    //       await new Promise(resolve => setTimeout(resolve, 10000));
+    //       break;
+    //     }
+    //   }
+    // } catch (error) {
+    //   // GO button not found
+    // }
     
     // Look for export buttons, PDF only
     const exportSelectors = ['.btn-export'];
@@ -84,23 +129,74 @@ async function exportBOTRatesToPDF() {
             try {
               const button = buttons[targetButtonIndex];
               
+              console.log(`🎯 Clicking export button ${targetButtonIndex + 1}...`);
+              
               // Force click without checking visibility
               await button.evaluate(el => {
                 el.click();
               });
               
-              // Wait and try clicking again in case it didn't work
-              await new Promise(resolve => setTimeout(resolve, 10000));
-              await button.evaluate(el => {
-                if (el.click) el.click();
-                if (el.dispatchEvent) {
-                  el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              
+              // Check if dropdown menu appeared
+              const dropdownMenus = await page.$$('.dropdown-menu, .dropdown-content, [role="menu"]');
+              console.log(`📋 Found ${dropdownMenus.length} dropdown menus after click`);
+              
+              if (dropdownMenus.length > 0) {
+                console.log('📤 Dropdown detected! Looking for PDF option...');
+                
+                // Look for PDF option in dropdown
+                for (const menu of dropdownMenus) {
+                  const menuItems = await menu.$$('a, button, li, span');
+                  
+                  for (const item of menuItems) {
+                    const itemText = await item.evaluate(el => el.textContent ? el.textContent.trim().toLowerCase() : '');
+                    console.log(`📄 Menu item: "${itemText}"`);
+                    
+                    if (itemText.includes('pdf')) {
+                      console.log(`🎯 Clicking PDF option: "${itemText}"`);
+                      await item.click();
+                      break;
+                    }
+                  }
                 }
-              });
+              } else {
+                console.log('💡 No dropdown menu, trying direct button approach...');
+                
+                // Wait and try clicking again in case it didn't work
+                await new Promise(resolve => setTimeout(resolve, 7000));
+                await button.evaluate(el => {
+                  if (el.click) el.click();
+                  if (el.dispatchEvent) {
+                    el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                  }
+                });
+              }
               
               buttonFound = true;
               
-              await new Promise(resolve => setTimeout(resolve, 15000));
+              console.log('⏳ Waiting for download to start...');
+              await new Promise(resolve => setTimeout(resolve, 20000));
+              
+              // Check downloaded files in temp directory
+              console.log('📁 Checking downloaded files...');
+              const downloadedFiles = fsExtra.readdirSync(tempDownloadDir);
+              console.log(`📄 Files found: ${downloadedFiles.length}`);
+              console.log('📄 File list:', downloadedFiles);
+              
+              // Move files to final destination if any found
+              if (downloadedFiles.length > 0) {
+                console.log('📦 Moving files to final destination...');
+                for (const file of downloadedFiles) {
+                  const sourcePath = path.join(tempDownloadDir, file);
+                  const destPath = path.join(outputDir, file);
+                  await fsExtra.move(sourcePath, destPath);
+                  console.log(`✅ Moved: ${file}`);
+                }
+                
+                // Clean up temp directory
+                await fsExtra.remove(tempDownloadDir);
+              }
               
               // Check downloaded files (only PDF that matches ER_PDF_DDMMYYYY.pdf pattern)
               const files = fs.readdirSync(outputDir);
